@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="ERGraph.Test/ERGraph.Test.csproj" />
+  <Project Path="ERGraph/ERGraph.csproj" />
+</Solution>

@@ -1,0 +1,4 @@
+# .NET Build artifacts
+**/[Bb]in
+**/[Oo]bj
+**[Bb]uild
