@@ -132,6 +132,12 @@ namespace ERGraph
         /// <exception cref="DuplicateNameException"></exception>
         public void SetEntityName(EntityID entityId, string name)
         {
+            // Ignore setting the name of an entity to its current name.
+            if (m_entityToNameMap.TryGetValue(entityId, out var n))
+            {
+                if (n == name) return;
+            }
+
             if (m_nameToEntityMap.ContainsKey(name))
             {
                 throw new DuplicateNameException(

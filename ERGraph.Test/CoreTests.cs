@@ -17,6 +17,87 @@ namespace ERGraph.Test
         }
 
         /// <summary>
+        /// Test assigning a name to an entity at creation time.
+        /// </summary>
+        [Test]
+        public void TestCreateNamedEntity()
+        {
+            var db = new Database();
+            var entityA = db.CreateEntity("A");
+            Assert.That(db.EntityExists(entityA), Is.True);
+        }
+
+        /// <summary>
+        /// Test that using a non unique name results in throwing a
+        /// duplicate name exception.
+        /// </summary>
+        [Test]
+        public void TestCreateNamedEntityThrowsDuplicationError()
+        {
+            var db = new Database();
+            var entityA = db.CreateEntity("A");
+
+            Assert.Throws(typeof(DuplicateNameException), () =>
+            {
+                db.CreateEntity("A");
+            });
+        }
+
+        /// <summary>
+        /// Test retrieving an entity using its name.
+        /// </summary>
+        [Test]
+        public void TestGetEntityByName()
+        {
+            var db = new Database();
+            var entityA = db.CreateEntity("A");
+            Assert.That(db.GetEntityByName("A"), Is.EqualTo(entityA));
+        }
+
+        /// <summary>
+        /// Test attempting to retrieve an entity using its name
+        /// </summary>
+        [Test]
+        public void TestTryGetEntityByName()
+        {
+            var db = new Database();
+            Assert.That(db.TryGetEntityByName("A", out var _), Is.False);
+            db.CreateEntity("A");
+            Assert.That(db.TryGetEntityByName("A", out var _), Is.True);
+        }
+
+        /// <summary>
+        /// Test setting the entity name.
+        /// </summary>
+        [Test]
+        public void TestSetEntityName()
+        {
+            var db = new Database();
+            var entityA = db.CreateEntity();
+            Assert.That(db.TryGetEntityByName("A", out var _), Is.False);
+            db.SetEntityName(entityA, "A");
+            Assert.That(db.TryGetEntityByName("A", out var _), Is.True);
+        }
+
+        /// <summary>
+        /// Test that using a non-unique name with .SetEntityName()
+        /// throws a duplicate name exception.
+        /// </summary>
+        [Test]
+        public void TestSetEntityNameThrowsDuplicateError()
+        {
+            var db = new Database();
+            var entityA = db.CreateEntity("A");
+            db.SetEntityName(entityA, "A");
+
+            Assert.Throws(typeof(DuplicateNameException), () =>
+            {
+                var entityB = db.CreateEntity();
+                db.SetEntityName(entityB, "A");
+            });
+        }
+
+        /// <summary>
         /// Test that entities no longer exist in the database after destruction.
         /// </summary>
         [Test]
