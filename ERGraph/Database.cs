@@ -24,6 +24,14 @@ namespace ERGraph
         /// </summary>
         private readonly HashSet<EntityID> m_activeEntityIds = new();
         /// <summary>
+        /// A map of name aliases entity IDs.
+        /// </summary>
+        private readonly Dictionary<string, EntityID> m_nameToEntityMap = new();
+        /// <summary>
+        /// A map of entity IDs to their name aliases.
+        /// </summary>
+        private readonly Dictionary<EntityID, string> m_entityToNameMap = new();
+        /// <summary>
         /// IDs of active relationship edges.
         /// </summary>
         private readonly HashSet<EntityID> m_activeRelationshipIds = new();
@@ -77,6 +85,70 @@ namespace ERGraph
         }
 
         /// <summary>
+        /// Create a new entity and assign the given name.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public EntityID CreateEntity(string name)
+        {
+            if (m_nameToEntityMap.ContainsKey(name))
+            {
+                throw new DuplicateNameException(
+                    $"{name} is already assigned to another entity");
+            }
+
+            EntityID entityId = CreateEntity();
+            m_nameToEntityMap.Add(name, entityId);
+            m_entityToNameMap.Add(entityId, name);
+            return entityId;
+        }
+
+        /// <summary>
+        /// Get the ID of an entity using its name
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public EntityID GetEntityByName(string name)
+        {
+            return m_nameToEntityMap[name];
+        }
+
+        /// <summary>
+        /// Attempt to retrieve an entity using it's name.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="entityId"></param>
+        /// <returns></returns>
+        public bool TryGetEntityByName(string name, out EntityID entityId)
+        {
+            return m_nameToEntityMap.TryGetValue(name, out entityId);
+        }
+
+        /// <summary>
+        /// Assign the given name to the entity.
+        /// </summary>
+        /// <param name="entityId"></param>
+        /// <param name="name"></param>
+        /// <exception cref="DuplicateNameException"></exception>
+        public void SetEntityName(EntityID entityId, string name)
+        {
+            // Ignore setting the name of an entity to its current name.
+            if (m_entityToNameMap.TryGetValue(entityId, out var n))
+            {
+                if (n == name) return;
+            }
+
+            if (m_nameToEntityMap.ContainsKey(name))
+            {
+                throw new DuplicateNameException(
+                    $"{name} is already assigned to another entity");
+            }
+
+            m_nameToEntityMap.Add(name, entityId);
+            m_entityToNameMap.Add(entityId, name);
+        }
+
+        /// <summary>
         /// Check if an entity node exists in the database.
         /// </summary>
         /// <param name="entityId"></param>
@@ -98,6 +170,13 @@ namespace ERGraph
             {
                 // Attempt to destroy the entity as a relationship.
                 return DestroyRelationship(entityId);
+            }
+
+            // Remove the name if assigned.
+            if (m_entityToNameMap.TryGetValue(entityId, out var name))
+            {
+                m_nameToEntityMap.Remove(name);
+                m_entityToNameMap.Remove(entityId);
             }
 
             m_activeEntityIds.Remove(entityId);
