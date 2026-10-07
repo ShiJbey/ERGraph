@@ -8,6 +8,12 @@ namespace ERGraph
 
     public class Database
     {
+        private static readonly string s_nodeTypeColName = "__node_type__";
+        private static readonly string s_valueTypeColName = "__value_type__";
+        private static readonly string s_intValueColName = "__int_value__";
+        private static readonly string s_floatValueColName = "__float_value__";
+        private static readonly string s_stringValueColName = "__string_value__";
+        private static readonly string s_boolValueColName = "__bool_value__";
         private static readonly int s_columnSizeIncrement = 64;
 
         /// <summary>
@@ -71,6 +77,17 @@ namespace ERGraph
         /// </summary>
         private readonly Dictionary<EntityID, int> m_edgeToSourceTargetIndex = new();
 
+        public Database()
+        {
+            // Create internal columns to hold values for value nodes.
+            GetOrCreateTraitColumn<NodeType>(s_nodeTypeColName);
+            GetOrCreateTraitColumn<ValueNodeType>(s_valueTypeColName);
+            GetOrCreateTraitColumn<int>(s_intValueColName);
+            GetOrCreateTraitColumn<float>(s_floatValueColName);
+            GetOrCreateTraitColumn<string>(s_stringValueColName);
+            GetOrCreateTraitColumn<bool>(s_boolValueColName);
+        }
+
         /// <summary>
         /// Create a new entity node in the database.
         /// </summary>
@@ -81,6 +98,7 @@ namespace ERGraph
                 ? m_freeEntityIds.Dequeue()
                 : m_nextEntityId++;
             m_activeEntityIds.Add(entityId);
+            ((Column<NodeType>)m_columns[s_nodeTypeColName]).Set(entityId, NodeType.Entity);
             return entityId;
         }
 
@@ -215,6 +233,7 @@ namespace ERGraph
             m_sources[sourceTargetIndex] = sourceId;
             m_targets[sourceTargetIndex] = targetId;
             m_edgeToSourceTargetIndex.Add(relationship, sourceTargetIndex);
+            ((Column<NodeType>)m_columns[s_nodeTypeColName]).Set(relationship, NodeType.Relationship);
 
             AddRelationshipDictEntry(m_outgoingEdges, sourceId, relationship);
             AddRelationshipDictEntry(m_incomingEdges, targetId, relationship);
@@ -369,6 +388,155 @@ namespace ERGraph
                     yield return edge;
                 }
             }
+        }
+
+        /// <summary>
+        /// Set or create a named float value.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        public void SetFloatValue(string name, float value)
+        {
+            SetValue(name, (Column<float>)m_columns[s_floatValueColName], value, ValueNodeType.Float);
+        }
+
+        /// <summary>
+        /// Attempt to get a named float value.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public bool TryGetFloatValue(string name, out float value)
+        {
+            return TryGetValue(name, (Column<float>)m_columns[s_floatValueColName], out value);
+        }
+
+        /// <summary>
+        /// Set a named integer value.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        public void SetIntValue(string name, int value)
+        {
+            SetValue(name, (Column<int>)m_columns[s_intValueColName], value, ValueNodeType.Int);
+        }
+
+        /// <summary>
+        /// Attempt to get a named integer value.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public bool TryGetIntValue(string name, out int value)
+        {
+            return TryGetValue(name, (Column<int>)m_columns[s_intValueColName], out value);
+        }
+
+        /// <summary>
+        /// Set a named string value.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        public void SetStringValue(string name, string value)
+        {
+            SetValue(name, (Column<string>)m_columns[s_stringValueColName], value, ValueNodeType.String);
+        }
+
+        /// <summary>
+        /// Attempt to get a named string value.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public bool TryGetStringValue(string name, out string? value)
+        {
+            return TryGetValue(name, (Column<string>)m_columns[s_stringValueColName], out value);
+        }
+
+        /// <summary>
+        /// Set a named boolean value.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        public void SetBoolValue(string name, bool value)
+        {
+            SetValue(name, (Column<bool>)m_columns[s_boolValueColName], value, ValueNodeType.Bool);
+        }
+
+        /// <summary>
+        /// Attempt to get a named boolean value.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public bool TryGetBoolValue(string name, out bool value)
+        {
+            return TryGetValue(name, (Column<bool>)m_columns[s_boolValueColName], out value);
+        }
+
+        /// <summary>
+        /// A helper method for setting the value of or creating a new value node.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="name"></param>
+        /// <param name="column"></param>
+        /// <param name="value"></param>
+        /// <param name="valueNodeType"></param>
+        /// <exception cref="Errors.InvalidOperationException"></exception>
+        private void SetValue<T>(string name, Column<T> column, T value, ValueNodeType valueNodeType)
+        {
+            if (TryGetEntityByName(name, out var entityId))
+            {
+                if (IsEntityNode(entityId))
+                {
+                    throw new Errors.InvalidOperationException("Expected value node but was entity node.");
+                }
+                else
+                {
+                    // Remove the current value from
+                    var valueColumn = (Column<T>)GetValueColumn(GetValueNodeType(entityId));
+                    if (valueColumn != column)
+                    {
+                        valueColumn.Remove(entityId);
+                    }
+                    column.Set(entityId, value);
+                }
+            }
+            else
+            {
+                // Create a new named entity and set its value
+                EntityID entityID = CreateEntity(name);
+                ((Column<NodeType>)m_columns[s_nodeTypeColName]).Set(entityId, NodeType.Value);
+                ((Column<ValueNodeType>)m_columns[s_valueTypeColName]).Set(entityId, valueNodeType);
+                column.Set(entityID, value);
+            }
+        }
+
+        /// <summary>
+        /// A helper method for getting the value of a value node.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="name"></param>
+        /// <param name="column"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        /// <exception cref="Errors.InvalidOperationException"></exception>
+        private bool TryGetValue<T>(string name, Column<T> column, out T? value)
+        {
+            if (TryGetEntityByName(name, out var entityId))
+            {
+                if (IsEntityNode(entityId))
+                {
+                    throw new Errors.InvalidOperationException("Expected value node but was entity node.");
+                }
+                else
+                {
+                    return column.TryGet(entityId, out value);
+                }
+            }
+
+            value = default;
+            return false;
         }
 
         /// <summary>
@@ -667,6 +835,83 @@ namespace ERGraph
                     relationshipIdList.Remove(relationshipId);
                 }
             }
+        }
+
+        /// <summary>
+        /// Returns true if the given ID is mapped to a value node.
+        /// </summary>
+        /// <param name="entityId"></param>
+        /// <returns></returns>
+        /// <exception cref="EntityNotFoundException"></exception>
+        private bool IsValueNode(EntityID entityId)
+        {
+            var nodeTypeCol = (Column<NodeType>)m_columns[s_nodeTypeColName];
+
+            if (nodeTypeCol.TryGet(entityId, out var nodeType))
+            {
+                return nodeType == NodeType.Value;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns true if the given ID is mapped to an entity node.
+        /// </summary>
+        /// <param name="entityId"></param>
+        /// <returns></returns>
+        /// <exception cref="EntityNotFoundException"></exception>
+        public bool IsEntityNode(EntityID entityId)
+        {
+            var nodeTypeCol = (Column<NodeType>)m_columns[s_nodeTypeColName];
+
+            if (nodeTypeCol.TryGet(entityId, out var nodeType))
+            {
+                return nodeType == NodeType.Entity;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Get the value column for an associated value node type.
+        /// </summary>
+        /// <param name="valueNodeType"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
+        private IColumn GetValueColumn(ValueNodeType valueNodeType)
+        {
+            switch (valueNodeType)
+            {
+                case ValueNodeType.Int:
+                    return m_columns[s_intValueColName];
+                case ValueNodeType.Float:
+                    return m_columns[s_floatValueColName];
+                case ValueNodeType.String:
+                    return m_columns[s_stringValueColName];
+                case ValueNodeType.Bool:
+                    return m_columns[s_boolValueColName];
+                default:
+                    throw new ArgumentException("Unrecognized value node type");
+            }
+        }
+
+        /// <summary>
+        /// Get the value type for a value node.
+        /// </summary>
+        /// <param name="entityId"></param>
+        /// <returns></returns>
+        /// <exception cref="Errors.InvalidOperationException"></exception>
+        private ValueNodeType GetValueNodeType(EntityID entityId)
+        {
+            var valueTypeCol = (Column<ValueNodeType>)m_columns[s_valueTypeColName];
+
+            if (valueTypeCol.TryGet(entityId, out var valueNodeType))
+            {
+                return valueNodeType;
+            }
+
+            throw new Errors.InvalidOperationException("Cannot get value node type of entity node");
         }
 
         /// <summary>

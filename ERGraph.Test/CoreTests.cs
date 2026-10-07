@@ -361,5 +361,77 @@ namespace ERGraph.Test
 
             Assert.That(db.TryGetTrait(entityA, "apples", out int _), Is.True);
         }
+
+        [Test]
+        public void TestSetGetFloatValue()
+        {
+            var db = new Database();
+
+            Assert.That(db.TryGetFloatValue("val", out float _), Is.False);
+
+            db.SetFloatValue("val", 10f);
+
+            Assert.That(db.TryGetFloatValue("val", out float _), Is.True);
+
+            db.TryGetFloatValue("val", out float val);
+            Assert.That(val, Is.EqualTo(10f));
+        }
+
+        [Test]
+        public void TestSetGetIntValue()
+        {
+            var db = new Database();
+
+            Assert.That(db.TryGetIntValue("val", out int _), Is.False);
+
+            db.SetIntValue("val", 10);
+
+            Assert.That(db.TryGetIntValue("val", out int _), Is.True);
+
+            db.TryGetIntValue("val", out int val);
+            Assert.That(val, Is.EqualTo(10));
+        }
+
+        [Test]
+        public void TestSetGetStringValue()
+        {
+            var db = new Database();
+
+            Assert.That(db.TryGetStringValue("val", out string? _), Is.False);
+
+            db.SetStringValue("val", "pizza");
+
+            Assert.That(db.TryGetStringValue("val", out string? _), Is.True);
+
+            db.TryGetStringValue("val", out string? val);
+            Assert.That(val, Is.EqualTo("pizza"));
+        }
+
+        [Test]
+        public void TestSetGetBoolValue()
+        {
+            var db = new Database();
+
+            Assert.That(db.TryGetBoolValue("val", out bool _), Is.False);
+
+            db.SetBoolValue("val", false);
+
+            Assert.That(db.TryGetBoolValue("val", out bool _), Is.True);
+
+            db.TryGetBoolValue("val", out bool val);
+            Assert.That(val, Is.False);
+        }
+
+        [Test]
+        public void TestIsEntityNode()
+        {
+            var db = new Database();
+            var entityA = db.CreateEntity();
+            var entityB = db.CreateEntity();
+            var relAToB = db.CreateRelationship(entityA, entityB);
+
+            Assert.That(db.IsEntityNode(entityA), Is.True);
+            Assert.That(db.IsEntityNode(relAToB), Is.False);
+        }
     }
 } // namespace ERGraph.Test
